@@ -18,17 +18,40 @@ tibems_long castToLong(int value) {
 tibems_int castToInt(int value) {
   return (tibems_int)value;
 }
+*/
+import "C"
+
+/*
+typedef void* voidPointer;
+
+typedef void (*OnMessageCallback)(tibemsMsgConsumer, tibemsMsg, voidPointer);
+
+void bridgeOnMessage(OnMessageCallback f) {
+  printf("WORLD");
+  return f(NULL, NULL, NULL);
+}
+
+void onMessage(tibemsMsgConsumer consumer, tibemsMsg msg, voidPointer closure) {
+  printf("HELLO");
+}
 
 */
 import "C"
+
 import (
 	"errors"
+	"fmt"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"unsafe"
-	"fmt"
 )
+
+type CallbackFunc func(consumer C.tibemsMsgConsumer, msg C.tibemsMsg, closure C.voidPointer)
+
+func onMessage(consumer C.tibemsMsgConsumer, msg C.tibemsMsg, closure C.voidPointer) {
+	fmt.Println("HELLO")
+}
 
 type Client interface {
 	IsConnected() bool
@@ -226,9 +249,7 @@ func (c *client) SendReceive(destination string, message string, deliveryMode st
 
 	replyMessageText := C.GoString(buf)
 
-
-	fmt.Println("Received JMS Reply Text Message = "+replyMessageText)
-
+	fmt.Println("Received JMS Reply Text Message = " + replyMessageText)
 
 	// destroy the request message
 	status = C.tibemsMsg_Destroy(reqMsg)
@@ -257,7 +278,6 @@ func (c *client) SendReceive(destination string, message string, deliveryMode st
 		e, _ := c.getErrorContext()
 		return "", errors.New(e)
 	}
-
 
 	return replyMessageText, nil
 
@@ -397,4 +417,45 @@ func (c *client) getErrorContext() (string, string) {
 
 	return errorString, stackTrace
 
+}
+
+func (c *client) Listen(destinationName string) error {
+
+	var destination C.tibemsDestination
+	var session C.tibemsSession
+	var msgConsumer C.tibemsMsgConsumer
+
+	/* create the destination */
+	//if (useTopic)
+	//status := tibemsTopic_Create(&destination,name);
+	//else
+	status := C.tibemsDestination_Create(&destination, TIBEMS_QUEUE, C.CString(destinationName))
+	if status != TIBEMS_OK {
+		e, _ := c.getErrorContext()
+		return errors.New(e)
+	}
+
+	/* create the session */
+	status = C.tibemsConnection_CreateSession(c.conn, &session, TIBEMS_FALSE, TIBEMS_AUTO_ACKNOWLEDGE)
+	if status != TIBEMS_OK {
+		e, _ := c.getErrorContext()
+		return errors.New(e)
+	}
+
+	/* create the consumer */
+	status = C.tibemsSession_CreateConsumer(session, &msgConsumer, destination, nil, TIBEMS_FALSE)
+	if status != TIBEMS_OK {
+		e, _ := c.getErrorContext()
+		return errors.New(e)
+	}
+
+	/* set the message listener */
+	callback := C.OnMessageCallback(C.onMessage)
+	status = C.tibemsMsgConsumer_SetMsgListener(msgConsumer, callback, nil)
+	if status != TIBEMS_OK {
+		e, _ := c.getErrorContext()
+		return errors.New(e)
+	}
+
+	return nil
 }
