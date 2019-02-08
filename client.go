@@ -26,101 +26,101 @@ type client struct {
 	sync.RWMutex
 }
 
-func (c *client) IsConnected() bool {
+func (client *client) IsConnected() bool {
 
-	c.RLock()
-	defer c.RUnlock()
+	client.RLock()
+	defer client.RUnlock()
 
-	return c.status == connected
+	return client.status == connected
 
 }
-func (c *client) Connect() error {
+func (client *client) Connect() error {
 
-	c.RLock()
-	defer c.RUnlock()
+	client.RLock()
+	defer client.RUnlock()
 
-	status := C.tibemsErrorContext_Create(&c.errorContext)
+	status := C.tibemsErrorContext_Create(&client.errorContext)
 
 	if status != TIBEMS_OK {
 		return errors.New("failed to create error context")
 	}
 
-	c.cf = C.tibemsConnectionFactory_Create()
+	client.cf = C.tibemsConnectionFactory_Create()
 
-	url := c.options.GetServerUrl()
+	url := client.options.GetServerUrl()
 
-	status = C.tibemsConnectionFactory_SetServerURL(c.cf, C.CString(url.String()))
+	status = C.tibemsConnectionFactory_SetServerURL(client.cf, C.CString(url.String()))
 	if status != TIBEMS_OK {
-		e, _ := c.getErrorContext()
+		e, _ := client.getErrorContext()
 		return errors.New(e)
 	}
 
 	// create the connection
-	status = C.tibemsConnectionFactory_CreateConnection(c.cf, &c.conn, C.CString(c.options.username), C.CString(c.options.password))
+	status = C.tibemsConnectionFactory_CreateConnection(client.cf, &client.conn, C.CString(client.options.username), C.CString(client.options.password))
 	if status != TIBEMS_OK {
-		e, _ := c.getErrorContext()
+		e, _ := client.getErrorContext()
 		return errors.New(e)
 	}
 
 	// start the connection
-	status = C.tibemsConnection_Start(c.conn)
+	status = C.tibemsConnection_Start(client.conn)
 	if status != TIBEMS_OK {
-		e, _ := c.getErrorContext()
+		e, _ := client.getErrorContext()
 		return errors.New(e)
 	}
 
-	c.setConnected(connected)
+	client.setConnected(connected)
 
 	return nil
 }
 
-func (c *client) Disconnect() error {
+func (client *client) Disconnect() error {
 
-	c.RLock()
-	defer c.RUnlock()
+	client.RLock()
+	defer client.RUnlock()
 
-	if c.IsConnected() {
+	if client.IsConnected() {
 
-		status := C.tibemsConnection_Stop(c.conn)
+		status := C.tibemsConnection_Stop(client.conn)
 		if status != TIBEMS_OK {
 			return errors.New("failed to stop connection")
 		}
 
 		// close the connection
-		status = C.tibemsConnection_Close(c.conn)
+		status = C.tibemsConnection_Close(client.conn)
 		if status != TIBEMS_OK {
 			return errors.New("failed to close connection")
 		}
 
-		c.setConnected(disconnected)
+		client.setConnected(disconnected)
 	}
 
 	return nil
 }
 
-func (c *client) connectionStatus() uint32 {
-	c.RLock()
-	defer c.RUnlock()
-	status := atomic.LoadUint32(&c.status)
+func (client *client) connectionStatus() uint32 {
+	client.RLock()
+	defer client.RUnlock()
+	status := atomic.LoadUint32(&client.status)
 	return status
 }
 
-func (c *client) setConnected(status uint32) {
-	c.RLock()
-	defer c.RUnlock()
-	atomic.StoreUint32(&c.status, status)
+func (client *client) setConnected(status uint32) {
+	client.RLock()
+	defer client.RUnlock()
+	atomic.StoreUint32(&client.status, status)
 }
 
-func (c *client) getErrorContext() (string, string) {
+func (client *client) getErrorContext() (string, string) {
 
 	var errorString, stackTrace = "", ""
 	var buf *C.char
 	defer C.free(unsafe.Pointer(buf))
 
-	C.tibemsErrorContext_GetLastErrorString(c.errorContext, &buf)
+	C.tibemsErrorContext_GetLastErrorString(client.errorContext, &buf)
 	errorString = C.GoString(buf)
 
-	C.tibemsErrorContext_GetLastErrorStackTrace(c.errorContext, &buf)
+	C.tibemsErrorContext_GetLastErrorStackTrace(client.errorContext, &buf)
 	stackTrace = C.GoString(buf)
 
 	return errorString, stackTrace

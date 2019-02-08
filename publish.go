@@ -18,7 +18,6 @@ tibems_int castToInt(int value) {
 import "C"
 import (
 	"errors"
-	"fmt"
 	"strings"
 	"unsafe"
 )
@@ -38,7 +37,7 @@ func NewPublisher(o *ClientOptions) Publisher {
 	return c
 }
 
-func (c *client) SendReceive(destination string, message string, deliveryMode string, expiration int) (string, error) {
+func (client *client) SendReceive(destination string, message string, deliveryMode string, expiration int) (string, error) {
 	var dest C.tibemsDestination
 	var session C.tibemsSession
 	var requestor C.tibemsMsgRequestor
@@ -50,35 +49,35 @@ func (c *client) SendReceive(destination string, message string, deliveryMode st
 	// create the destination
 	status := C.tibemsDestination_Create(&dest, TIBEMS_QUEUE, C.CString(destination))
 	if status != TIBEMS_OK {
-		e, _ := c.getErrorContext()
+		e, _ := client.getErrorContext()
 		return "", errors.New(e)
 	}
 
 	// create the session
-	status = C.tibemsConnection_CreateSession(c.conn, &session, TIBEMS_FALSE, TIBEMS_AUTO_ACKNOWLEDGE)
+	status = C.tibemsConnection_CreateSession(client.conn, &session, TIBEMS_FALSE, TIBEMS_AUTO_ACKNOWLEDGE)
 	if status != TIBEMS_OK {
-		e, _ := c.getErrorContext()
+		e, _ := client.getErrorContext()
 		return "", errors.New(e)
 	}
 
 	// create the requestor
 	status = C.tibemsMsgRequestor_Create(session, &requestor, dest)
 	if status != TIBEMS_OK {
-		e, _ := c.getErrorContext()
+		e, _ := client.getErrorContext()
 		return "", errors.New(e)
 	}
 
 	// create the request message
 	status = C.tibemsMsg_Create(&reqMsg)
 	if status != TIBEMS_OK {
-		e, _ := c.getErrorContext()
+		e, _ := client.getErrorContext()
 		return "", errors.New(e)
 	}
 
 	// create the message
 	status = C.tibemsTextMsg_Create(&msg)
 	if status != TIBEMS_OK {
-		e, _ := c.getErrorContext()
+		e, _ := client.getErrorContext()
 		return "", errors.New(e)
 	}
 
@@ -94,35 +93,35 @@ func (c *client) SendReceive(destination string, message string, deliveryMode st
 
 	status = C.tibemsMsg_SetDeliveryMode(msg, C.tibemsDeliveryMode(emsDeliveryMode))
 	if status != TIBEMS_OK {
-		e, _ := c.getErrorContext()
+		e, _ := client.getErrorContext()
 		return "", errors.New(e)
 	}
 
 	// set message expiration
 	status = C.tibemsMsg_SetExpiration(msg, C.castToLong(C.int(expiration)))
 	if status != TIBEMS_OK {
-		e, _ := c.getErrorContext()
+		e, _ := client.getErrorContext()
 		return "", errors.New(e)
 	}
 
 	// create the reply message
 	status = C.tibemsMsg_Create(&repMsg)
 	if status != TIBEMS_OK {
-		e, _ := c.getErrorContext()
+		e, _ := client.getErrorContext()
 		return "", errors.New(e)
 	}
 
 	// set the message text
 	status = C.tibemsTextMsg_SetText(msg, C.CString(message))
 	if status != TIBEMS_OK {
-		e, _ := c.getErrorContext()
+		e, _ := client.getErrorContext()
 		return "", errors.New(e)
 	}
 
 	// send a request message; wait for a reply
 	status = C.tibemsMsgRequestor_Request(requestor, msg, &repMsg)
 	if status != TIBEMS_OK {
-		e, _ := c.getErrorContext()
+		e, _ := client.getErrorContext()
 		return "", errors.New(e)
 	}
 
@@ -136,33 +135,33 @@ func (c *client) SendReceive(destination string, message string, deliveryMode st
 
 	replyMessageText := C.GoString(buf)
 
-	fmt.Println("Received JMS Reply Text Message = " + replyMessageText)
+	//fmt.Println("Received JMS Reply Text Message = " + replyMessageText)
 
 	// destroy the request message
 	status = C.tibemsMsg_Destroy(reqMsg)
 	if status != TIBEMS_OK {
-		e, _ := c.getErrorContext()
+		e, _ := client.getErrorContext()
 		return "", errors.New(e)
 	}
 
 	// destroy the requestor
 	status = C.tibemsMsgRequestor_Close(requestor)
 	if status != TIBEMS_OK {
-		e, _ := c.getErrorContext()
+		e, _ := client.getErrorContext()
 		return "", errors.New(e)
 	}
 
 	// destroy the session
 	status = C.tibemsSession_Close(session)
 	if status != TIBEMS_OK {
-		e, _ := c.getErrorContext()
+		e, _ := client.getErrorContext()
 		return "", errors.New(e)
 	}
 
 	// destroy the destination
 	status = C.tibemsDestination_Destroy(dest)
 	if status != TIBEMS_OK {
-		e, _ := c.getErrorContext()
+		e, _ := client.getErrorContext()
 		return "", errors.New(e)
 	}
 
@@ -170,7 +169,7 @@ func (c *client) SendReceive(destination string, message string, deliveryMode st
 
 }
 
-func (c *client) Send(destination string, message string, deliveryDelay int, deliveryMode string, expiration int) error {
+func (client *client) Send(destination string, message string, deliveryDelay int, deliveryMode string, expiration int) error {
 
 	var dest C.tibemsDestination
 	var session C.tibemsSession
@@ -180,27 +179,27 @@ func (c *client) Send(destination string, message string, deliveryDelay int, del
 	// create the destination
 	status := C.tibemsDestination_Create(&dest, TIBEMS_QUEUE, C.CString(destination))
 	if status != TIBEMS_OK {
-		e, _ := c.getErrorContext()
+		e, _ := client.getErrorContext()
 		return errors.New(e)
 	}
 
 	// create the session
-	status = C.tibemsConnection_CreateSession(c.conn, &session, TIBEMS_FALSE, TIBEMS_AUTO_ACKNOWLEDGE)
+	status = C.tibemsConnection_CreateSession(client.conn, &session, TIBEMS_FALSE, TIBEMS_AUTO_ACKNOWLEDGE)
 	if status != TIBEMS_OK {
-		e, _ := c.getErrorContext()
+		e, _ := client.getErrorContext()
 		return errors.New(e)
 	}
 
 	// create the producer
 	status = C.tibemsSession_CreateProducer(session, &msgProducer, dest)
 	if status != TIBEMS_OK {
-		e, _ := c.getErrorContext()
+		e, _ := client.getErrorContext()
 		return errors.New(e)
 	}
 
 	status = C.tibemsMsgProducer_SetDeliveryDelay(msgProducer, C.castToLong(C.int(deliveryDelay)))
 	if status != TIBEMS_OK {
-		e, _ := c.getErrorContext()
+		e, _ := client.getErrorContext()
 		return errors.New(e)
 	}
 
@@ -215,62 +214,62 @@ func (c *client) Send(destination string, message string, deliveryDelay int, del
 
 	status = C.tibemsMsgProducer_SetDeliveryMode(msgProducer, C.castToInt(C.int(emsDeliveryMode)))
 	if status != TIBEMS_OK {
-		e, _ := c.getErrorContext()
+		e, _ := client.getErrorContext()
 		return errors.New(e)
 	}
 
 	status = C.tibemsMsgProducer_SetTimeToLive(msgProducer, C.castToLong(C.int(expiration)))
 	if status != TIBEMS_OK {
-		e, _ := c.getErrorContext()
+		e, _ := client.getErrorContext()
 		return errors.New(e)
 	}
 
 	// create the message
 	status = C.tibemsTextMsg_Create(&txtMsg)
 	if status != TIBEMS_OK {
-		e, _ := c.getErrorContext()
+		e, _ := client.getErrorContext()
 		return errors.New(e)
 	}
 
 	// set the message text
 	status = C.tibemsTextMsg_SetText(txtMsg, C.CString(message))
 	if status != TIBEMS_OK {
-		e, _ := c.getErrorContext()
+		e, _ := client.getErrorContext()
 		return errors.New(e)
 	}
 
 	// publish the message
 	status = C.tibemsMsgProducer_Send(msgProducer, txtMsg)
 	if status != TIBEMS_OK {
-		e, _ := c.getErrorContext()
+		e, _ := client.getErrorContext()
 		return errors.New(e)
 	}
 
 	// destroy the message
 	status = C.tibemsMsg_Destroy(txtMsg)
 	if status != TIBEMS_OK {
-		e, _ := c.getErrorContext()
+		e, _ := client.getErrorContext()
 		return errors.New(e)
 	}
 
 	// destroy the producer
 	status = C.tibemsMsgProducer_Close(msgProducer)
 	if status != TIBEMS_OK {
-		e, _ := c.getErrorContext()
+		e, _ := client.getErrorContext()
 		return errors.New(e)
 	}
 
 	// destroy the session
 	status = C.tibemsSession_Close(session)
 	if status != TIBEMS_OK {
-		e, _ := c.getErrorContext()
+		e, _ := client.getErrorContext()
 		return errors.New(e)
 	}
 
 	// destroy the destination
 	status = C.tibemsDestination_Destroy(dest)
 	if status != TIBEMS_OK {
-		e, _ := c.getErrorContext()
+		e, _ := client.getErrorContext()
 		return errors.New(e)
 	}
 

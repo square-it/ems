@@ -25,3 +25,7 @@ func assertNewClient(c *client, t *testing.T) {
 		t.Fatalf("bad password")
 	}
 }
+
+func getClientOptions() *ClientOptions {
+	return NewClientOptions().SetServerUrl("tcp://127.0.0.1:7222").SetUsername("admin").SetPassword("")
+}

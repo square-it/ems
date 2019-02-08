@@ -1,17 +1,25 @@
 package ems
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+)
+
+func getSubscriberClient(ops *ClientOptions) *client {
+	return NewSubscriber(ops).(*client)
+}
 
 func TestNewSubscriber(t *testing.T) {
-	ops := NewClientOptions().SetServerUrl("tcp://127.0.0.1:7222").SetUsername("admin").SetPassword("")
+	ops := getClientOptions()
 
-	c := NewSubscriber(ops).(*client)
-	assertNewClient(c, t)
+	client := getSubscriberClient(ops)
+	assertNewClient(client, t)
 }
 
 func TestSubscriber_Receive(t *testing.T) {
 
-	ops := NewClientOptions().SetServerUrl("tcp://127.0.0.1:7222").SetUsername("admin").SetPassword("")
+	ops := getClientOptions()
 
 	c := NewSubscriber(ops).(*client)
 
@@ -20,12 +28,38 @@ func TestSubscriber_Receive(t *testing.T) {
 		t.Fatalf(err.Error())
 	}
 
-	go c.Listen("queue.sample")
+	receiver := make(chan *Message)
+	go c.Listen("queue.sample", receiver)
 	if err != nil {
 		t.Fatalf(err.Error())
 	}
 
-	//select {} // # infinite loop
+	testMessage := "hello, world"
+	go func() {
+		ops := getClientOptions()
+
+		client := getPublisherClient(ops)
+
+		err := client.Connect()
+		if err != nil {
+			t.Fatalf(err.Error())
+		}
+
+		err = client.Send("queue.sample", testMessage, 0, "non_persistent", 10000)
+		if err != nil {
+			t.Fatalf(err.Error())
+		}
+
+		err = client.Disconnect()
+		if err != nil {
+			t.Fatalf(err.Error())
+		}
+	}() // send a message on the queue
+
+	select {
+	case received := <-receiver: // block until a message is received on the queue
+		assert.Equal(t, received.MsgContent, testMessage)
+	}
 
 	err = c.Disconnect()
 	if err != nil {

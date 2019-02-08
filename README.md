@@ -53,7 +53,7 @@ docker run --name ems -d -p 7222:7222 $TIBCO_EMS_DOCKER_IMAGE
 ```
 export LD_LIBRARY_PATH=$TIBCO_EMS_DIRECTORY/opt/tibco/ems/8.3/lib
 
-go test .
+go test -v .
 ```
 
 ## Reporting bugs

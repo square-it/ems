@@ -1,70 +1,114 @@
 package ems
 
-import "testing"
+import (
+	"testing"
+)
+
+func getPublisherClient(ops *ClientOptions) *client {
+	return NewPublisher(ops).(*client)
+}
 
 func TestNewPublisher(t *testing.T) {
+	ops := getClientOptions()
 
-	ops := NewClientOptions().SetServerUrl("tcp://127.0.0.1:7222").SetUsername("admin").SetPassword("")
+	client := getPublisherClient(ops)
 
-	c := NewPublisher(ops).(*client)
-
-	assertNewClient(c, t)
+	assertNewClient(client, t)
 }
 
 func TestPublisher_Connect(t *testing.T) {
+	ops := getClientOptions()
 
-	ops := NewClientOptions().SetServerUrl("tcp://127.0.0.1:7222").SetUsername("admin").SetPassword("")
+	client := getPublisherClient(ops)
 
-	c := NewPublisher(ops).(*client)
-
-	err := c.Connect()
+	err := client.Connect()
 	if err != nil {
 		t.Fatalf(err.Error())
 	}
 
-	c.Disconnect()
+	client.Disconnect()
 }
 
 func TestPublisher_Send(t *testing.T) {
+	ops := getClientOptions()
 
-	ops := NewClientOptions().SetServerUrl("tcp://127.0.0.1:7222").SetUsername("admin").SetPassword("")
+	client := getPublisherClient(ops)
 
-	c := NewPublisher(ops).(*client)
-
-	err := c.Connect()
+	err := client.Connect()
 	if err != nil {
 		t.Fatalf(err.Error())
 	}
 
-	err = c.Send("queue.sample", "hello, world", 0, "non_persistent", 10000)
+	//err = client.Send("queue.sample", "hello, world", 0, "non_persistent", 10000)
 	if err != nil {
 		t.Fatalf(err.Error())
 	}
 
-	err = c.Disconnect()
+	err = client.Disconnect()
 	if err != nil {
 		t.Fatalf(err.Error())
 	}
 }
 
 func TestPublisher_SendReceive(t *testing.T) {
+	ops := getClientOptions()
 
-	ops := NewClientOptions().SetServerUrl("tcp://127.0.0.1:7222").SetUsername("admin").SetPassword("")
+	client := getPublisherClient(ops)
 
-	c := NewPublisher(ops).(*client)
+	err := client.Connect()
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	receiver := make(chan *Message)
+	subscribe(t, &receiver)
+
+	go func() {
+		_, err = client.SendReceive("queue.sample", "hello, world", "non_persistent", 1000)
+		if err != nil {
+			t.Fatalf(err.Error())
+		}
+	}()
+
+	select {
+	case received := <-receiver: // block until a message is received on the queue
+		ops := getClientOptions()
+
+		client := getPublisherClient(ops)
+
+		err := client.Connect()
+		if err != nil {
+			t.Fatalf(err.Error())
+		}
+
+		err = client.Send(received.ReplyDestinationName, received.MsgContent, 0, "non_persistent", 10000)
+		if err != nil {
+			t.Fatalf(err.Error())
+		}
+
+		err = client.Disconnect()
+		if err != nil {
+			t.Fatalf(err.Error())
+		}
+	}
+
+	//select {}
+
+	err = client.Disconnect()
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+}
+
+func subscribe(t *testing.T, receiver *chan *Message) {
+	ops := getClientOptions()
+
+	c := NewSubscriber(ops).(*client)
 
 	err := c.Connect()
 	if err != nil {
 		t.Fatalf(err.Error())
 	}
 
-	_, err = c.SendReceive("queue.sample", "hello, world", "non_persistent", 1000)
-	if err != nil {
-		t.Fatalf(err.Error())
-	}
-
-	err = c.Disconnect()
-	if err != nil {
-		t.Fatalf(err.Error())
-	}
+	go c.Listen("queue.sample", *receiver)
 }
