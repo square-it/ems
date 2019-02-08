@@ -31,7 +31,7 @@ docker rm -f ems
 1. Export the cgo CFLAGS and LDFLAGS directives to the correct location of your local EMS client libraries:
 ```
 export CGO_CFLAGS="-I. -I$TIBCO_EMS_DIRECTORY/opt/tibco/ems/8.3/include/tibems"
-export CGO_LDFLAGS="-L$TIBCO_EMS_DIRECTORY/opt/tibco/ems/8.3/lib -ltibems64"             
+export CGO_LDFLAGS="-L$TIBCO_EMS_DIRECTORY/opt/tibco/ems/8.3/lib -ltibems64"
 ```
 
 2. Build the library
